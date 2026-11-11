@@ -1270,16 +1270,17 @@ def ctx(rot=(0, 0, 0), tr=(0, 0, 0), scale=1.0):
 # refresh; delete that key in a workspace copy to keep your own tuning across re-runs.
 SIDECARS = {
     "chingam_grappler": {"size": 1.0, "rotation": [0, 0, 0], "contexts": {
-        "gui": ctx((25, -135, 0), (0, 0, 0), 0.95), "ground": ctx((0, 0, 0), (0, -0.1, 0), 0.55), "fixed": ctx((0, 90, 0), (0, 0, 0), 0.9),
-        "firstperson_righthand": ctx((0, 0, 0), (0.12, 0.05, -0.15), 0.85), "thirdperson_righthand": ctx((80, 0, 0), (0, 0.05, 0.12), 0.6)}},
+        "gui": ctx((10, 90, -25), (0, 0, 0), 1.1), "ground": ctx((0, 0, 0), (0, -0.1, 0), 0.55), "fixed": ctx((0, 90, 0), (0, 0, 0), 0.9),
+        "firstperson_righthand": ctx((0, 95, 3), (0.12, 0.02, -0.12), 0.85), "firstperson_lefthand": ctx((0, -95, -3), (-0.12, 0.02, -0.12), 0.85),
+        "thirdperson_righthand": ctx((90, 90, 0), (0, 0.05, 0.1), 0.6), "thirdperson_lefthand": ctx((90, 90, 0), (0, 0.05, 0.1), 0.6)}},
     "bhootiya_chaddar": {"size": 1.0, "rotation": [0, 0, 0], "animations": {"idle": "Idle", "wave": "Wave", "scared": "Scared"}, "contexts": {
         "gui": ctx((15, -30, 0), (0, -0.05, 0), 1.0), "ground": ctx((0, 0, 0), (0, 0, 0), 0.6),
-        "wear": ctx((0, 0, 0), (0, 0.55, 0), 1.9)}},
-    "bermuda_thaila": {"size": 1.0, "rotation": [0, 0, 0], "contexts": {
+        "wear": ctx((0, 0, 0), (0, 0.42, 0), 2.1)}},
+    "bermuda_thaila": {"size": 1.0, "rotation": [-90, 0, 0], "contexts": {
         "gui": ctx((25, -135, 0), (0, 0, 0), 1.0), "block": ctx((0, 0, 0), (0, 0.42, 0), 0.85),
         "firstperson_righthand": ctx((0, -45, 0), (0.1, 0.0, -0.1), 0.6), "thirdperson_righthand": ctx((20, 0, 0), (0, 0.0, 0.1), 0.5)}},
     "havaldar_cap": {"size": 1.0, "rotation": [0, 0, 0], "contexts": {
-        "gui": ctx((25, -135, 0), (0, 0, 0), 1.0), "wear": ctx((0, -0.42, 0), (0, -0.53, 0), 0.62), "head": ctx((0, 0, 0), (0, 0.1, 0), 0.9)}},
+        "gui": ctx((25, -135, 0), (0, 0, 0), 1.0), "wear": ctx((0, 0, 0), (0, -0.53, 0), 0.62), "head": ctx((0, 0, 0), (0, 0.1, 0), 0.9)}},
     "diwali_rocket": {"size": 1.0, "contexts": {"gui": ctx((0, 45, -30), (0, 0, 0), 1.0),
                                                  "firstperson_righthand": ctx((0, 0, 10), (0.15, 0.1, -0.1), 0.8)}},
     "jeb_katra_gloves": {"size": 1.0, "contexts": {"gui": ctx((15, 20, 0), (0, 0, 0), 1.0)}},
@@ -1523,6 +1524,7 @@ LANG = {
     "hud.heistmod.objective.sell": "Sell the loot to the Black Market Dealer", "hud.heistmod.objective.done": "Done - see Agent Zero",
     # ---- commands
     "command.heistmod.city.start": "Building the Mega City (%s blocks) at %s %s %s - placing in multi-tick batches...",
+    "command.heistmod.city.raised": "Street level raised to y=%s so the bunker and vault fit above the world floor.",
     "command.heistmod.city.busy": "A city is already being built - wait for it to finish.",
     "command.heistmod.city.part_done": "Placed %s",
     "command.heistmod.city.done": "§aThe Mega City is ready. §rThe bunker entrance is the newsstand south of the plaza.",
@@ -4851,7 +4853,7 @@ public final class HeistHud {
             float dy = h * (0.45F + rnd.nextFloat() * 0.15F) + sag;
             float speed = 2.0F + rnd.nextFloat() * 4.5F;
             float len = Math.min(h * (0.25F + rnd.nextFloat() * 0.35F), Math.max(0, elapsed - 3) * speed);
-            int dw = (int) (w * (0.012F + rnd.nextFloat() * 0.012F));
+            int dw = (int) (w * (0.032F + rnd.nextFloat() * 0.026F));
             if (len > 2) {
                 g.blit(drip, (int) dx - dw / 2, (int) dy, dw, (int) len, 0.0F, 0.0F, 48, 384, 48, 384);
             }
@@ -5047,10 +5049,14 @@ public final class SplatTexture {
     private static void blob(float[] field, float bx, float by, float r) {
         int reach = (int) (r * 3.2F);
         float r2 = r * r;
+        float edge = r2 / (reach * (float) reach);   // subtract so the falloff reaches exactly zero at the box edge (no seams)
         for (int y = Math.max(0, (int) by - reach); y < Math.min(H, (int) by + reach); y++) {
             for (int x = Math.max(0, (int) bx - reach); x < Math.min(W, (int) bx + reach); x++) {
                 float dx = x - bx, dy = y - by;
-                field[y * W + x] += r2 / (dx * dx + dy * dy + 1.0F);
+                float v = r2 / (dx * dx + dy * dy + 1.0F) - edge;
+                if (v > 0.0F) {
+                    field[y * W + x] += v;
+                }
             }
         }
     }
@@ -5359,11 +5365,16 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 
 /** Draws the laser beam: a hot core plus a soft glow sleeve, pulsing orange while the alarm is raised. */
 public class LaserEmitterRenderer implements BlockEntityRenderer<LaserEmitterBlockEntity> {
+    private static final ResourceLocation WHITE = new ResourceLocation("minecraft", "textures/misc/white.png");
+
     public LaserEmitterRenderer(BlockEntityRendererProvider.Context ctx) {
     }
 
@@ -5389,25 +5400,34 @@ public class LaserEmitterRenderer implements BlockEntityRenderer<LaserEmitterBlo
             case EAST -> pose.mulPose(Axis.ZP.rotationDegrees(-90.0F));
             default -> { }
         }
-        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityTranslucentEmissive(WHITE));
         Matrix4f m = pose.last().pose();
+        Matrix3f n = pose.last().normal();
         float len = length + 0.5F;
-        box(vc, m, 0.025F, 0.3F, len, r, g, b, 0.95F * pulse);
-        box(vc, m, 0.07F, 0.3F, len, r, g * 0.6F, b, 0.28F * pulse);
+        box(vc, m, n, 0.022F, 0.3F, len, 1.0F, 0.55F + 0.45F * g, 0.5F, 1.0F);      // white-hot core
+        box(vc, m, n, 0.045F, 0.3F, len, r, g, b, 0.75F * pulse);                   // red beam
+        box(vc, m, n, 0.09F, 0.3F, len, r, g * 0.5F, b, 0.22F * pulse);             // soft glow
         pose.popPose();
     }
 
     /** Four side faces of a square tube along +Y from y0 to y1 (the beam is never seen end-on long enough to need caps). */
-    private static void box(VertexConsumer vc, Matrix4f m, float w, float y0, float y1, float r, float g, float b, float a) {
+    private static void box(VertexConsumer vc, Matrix4f m, Matrix3f n, float w, float y0, float y1, float r, float g, float b, float a) {
         float[][] c = {{-w, -w}, {w, -w}, {w, w}, {-w, w}};
         for (int i = 0; i < 4; i++) {
             float[] p = c[i];
             float[] q = c[(i + 1) % 4];
-            vc.vertex(m, p[0], y0, p[1]).color(r, g, b, a).endVertex();
-            vc.vertex(m, q[0], y0, q[1]).color(r, g, b, a).endVertex();
-            vc.vertex(m, q[0], y1, q[1]).color(r, g, b, a).endVertex();
-            vc.vertex(m, p[0], y1, p[1]).color(r, g, b, a).endVertex();
+            float nx = (p[0] + q[0]) * 0.5F;
+            float nz = (p[1] + q[1]) * 0.5F;
+            put(vc, m, n, p[0], y0, p[1], nx, nz, r, g, b, a);
+            put(vc, m, n, q[0], y0, q[1], nx, nz, r, g, b, a);
+            put(vc, m, n, q[0], y1, q[1], nx, nz, r, g, b, a);
+            put(vc, m, n, p[0], y1, p[1], nx, nz, r, g, b, a);
         }
+    }
+
+    private static void put(VertexConsumer vc, Matrix4f m, Matrix3f n, float x, float y, float z, float nx, float nz, float r, float g, float b, float a) {
+        vc.vertex(m, x, y, z).color(r, g, b, a).uv(0.5F, 0.5F).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(0xF000F0)
+                .normal(n, nx == 0 ? 0 : Math.signum(nx), 0, nz == 0 ? 0 : Math.signum(nz)).endVertex();
     }
 
     @Override
@@ -5672,7 +5692,7 @@ import java.util.List;
  */
 public class MissionBoardScreen extends AbstractContainerScreen<MissionBoardMenu> {
     private static final int W = 360;
-    private static final int H = 222;
+    private static final int H = 236;
     private static final int BG = 0xF00B1220;
     private static final int PANEL = 0xE0121C2E;
     private static final int CYAN = 0xFF3FE0FF;
@@ -5694,6 +5714,7 @@ public class MissionBoardScreen extends AbstractContainerScreen<MissionBoardMenu
         super.init();
         accept = addRenderableWidget(Button.builder(Component.translatable("gui.heistmod.board.accept"), b -> click(selected))
                 .bounds(leftPos + 128, topPos + H - 28, 110, 20).build());
+        // (earned diamonds are shown bottom-left, under the tabs)
         addRenderableWidget(Button.builder(Component.translatable("gui.heistmod.board.stop"), b -> click(MissionBoardMenu.BUTTON_STOP_TRACKING))
                 .bounds(leftPos + 244, topPos + H - 28, 106, 20).build());
     }
@@ -5750,8 +5771,7 @@ public class MissionBoardScreen extends AbstractContainerScreen<MissionBoardMenu
     @Override
     protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
         g.drawString(font, Component.translatable("gui.heistmod.board.header").withStyle(ChatFormatting.BOLD), 10, 8, CYAN, false);
-        g.drawString(font, Component.translatable("gui.heistmod.board.earned", ClientHeistState.diamondsEarned), W - 10 - font.width(
-                Component.translatable("gui.heistmod.board.earned", ClientHeistState.diamondsEarned)), 8, GOLD, false);
+        g.drawString(font, Component.translatable("gui.heistmod.board.earned", ClientHeistState.diamondsEarned), 10, H - 22, GOLD, false);
         Mission m = Mission.byTier(selected);
         if (m == null) {
             return;
@@ -5874,8 +5894,9 @@ public final class HeistCommand {
             return 0;
         }
         ServerLevel level = source.getLevel();
+        BlockPos placed = CityBuilder.clampOrigin(level, origin);
         int blocks = CityBuilder.spawn(level, origin, msg -> source.sendSuccess(() -> msg, true));
-        source.sendSuccess(() -> Component.translatable("command.heistmod.city.start", blocks, origin.getX(), origin.getY(), origin.getZ()), true);
+        source.sendSuccess(() -> Component.translatable("command.heistmod.city.start", blocks, placed.getX(), placed.getY(), placed.getZ()), true);
         return 1;
     }
 
@@ -7399,6 +7420,16 @@ public final class QuestRaycast {
 
         Hit best = null;
 
+        // 0) aiming straight at a stocked pedestal (or the block right under its hovering item) always counts
+        if (block.getType() == HitResult.Type.BLOCK) {
+            for (int dy = 0; dy <= 1; dy++) {
+                if (level.getBlockEntity(block.getBlockPos().below(dy)) instanceof TrophyPedestalBlockEntity pedestal && pedestal.hasItem()) {
+                    best = new Hit(pedestal.displayCenter(), pedestal::take, maxDist);
+                    break;
+                }
+            }
+        }
+
         // 1) quest items on pedestals (the item floats ~1 block above the block, so test against its display point)
         for (TrophyPedestalBlockEntity pedestal : TrophyPedestalBlockEntity.loaded()) {
             if (pedestal.getLevel() != level || !pedestal.hasItem()) {
@@ -7410,7 +7441,7 @@ public final class QuestRaycast {
                 continue;
             }
             Vec3 closest = start.add(look.scale(t));
-            if (closest.distanceToSqr(center) <= 0.85D * 0.85D && (best == null || t < best.distance())) {
+            if (closest.distanceToSqr(center) <= 1.1D * 1.1D && (best == null || t < best.distance())) {
                 best = new Hit(center, pedestal::take, t);
             }
         }
@@ -7512,15 +7543,15 @@ public final class ReelManager {
             Vec3 delta = target.subtract(pos);
             double dist = delta.length();
             reel.ticks++;
-            if (dist < 1.4D || reel.ticks > 160) {
+            double speed = 2.4D + Math.min(1.6D, reel.ticks * 0.2D);   // accelerating snap
+            if (dist <= speed + 0.5D || reel.ticks > 160) {
                 deliver(level, player, reel);
                 it.remove();
                 continue;
             }
-            Vec3 step = delta.scale(Math.min(3.2D, dist) / dist);
-            reel.carrier.setDeltaMovement(step);
-            reel.carrier.setPos(pos.add(step));
-            reel.carrier.hasImpulse = true;
+            // Position is driven here; the entity's own velocity stays zero so it never double-steps / overshoots.
+            reel.carrier.setDeltaMovement(Vec3.ZERO);
+            reel.carrier.setPos(pos.add(delta.scale(speed / dist)));
             level.sendParticles(ParticleTypes.END_ROD, pos.x, pos.y + 0.2, pos.z, 2, 0.05, 0.05, 0.05, 0.0);
             level.sendParticles(ParticleTypes.ELECTRIC_SPARK, pos.x, pos.y + 0.2, pos.z, 2, 0.12, 0.12, 0.12, 0.0);
         }
@@ -9897,6 +9928,7 @@ public final class ChaosSiphonManager {
         core.setInvulnerable(true);
         core.setUnlimitedLifetime();
         core.setGlowingTag(true);
+        core.setPickUpDelay(30);
         core.setDeltaMovement(Vec3.ZERO);
         level.addFreshEntity(core);
 
@@ -10100,6 +10132,8 @@ public final class CityBlueprints {
     public static final int ISLAND_RADIUS = 30;
     /** Island top above the launch-tower roof; the rocket's 150 block apex clears it, so the player lands on it from above. */
     public static final int ISLAND_ABOVE_ROOF = 112;
+    /** Deepest block of any part (bunker / vault floor foundations) relative to street level. */
+    public static final int DEPTH = 18;
 
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
 
@@ -10201,6 +10235,8 @@ public final class CityBlueprints {
         Schematic.Builder b = new Schematic.Builder("city_plaza");
         // clear the air above street level and lay foundations + streets
         b.fill(-HALF, 0, -HALF, HALF, 14, HALF, AIR);
+        // solid bedrock-to-street foundation so the underground bunker and vault sit in rock even on superflat worlds
+        b.fill(-HALF, -DEPTH, -HALF, HALF, -4, HALF, s(Blocks.DEEPSLATE));
         b.fill(-HALF, -3, -HALF, HALF, -2, HALF, s(Blocks.STONE));
         b.fill(-HALF, -1, -HALF, HALF, -1, HALF, s(Blocks.SMOOTH_STONE));
         // avenues (N-S and E-W) with lane markings
@@ -10708,7 +10744,17 @@ public final class CityBuilder {
         return parts;
     }
 
-    public static int spawn(ServerLevel level, BlockPos origin, Consumer<Component> log) {
+    /** Raises the origin when needed so the deepest underground room stays above the world floor. */
+    public static BlockPos clampOrigin(ServerLevel level, BlockPos origin) {
+        int minStreet = level.getMinBuildHeight() + CityBlueprints.DEPTH + 1;
+        return origin.getY() < minStreet ? new BlockPos(origin.getX(), minStreet, origin.getZ()) : origin;
+    }
+
+    public static int spawn(ServerLevel level, BlockPos requested, Consumer<Component> log) {
+        BlockPos origin = clampOrigin(level, requested);
+        if (!origin.equals(requested)) {
+            log.accept(Component.translatable("command.heistmod.city.raised", origin.getY()));
+        }
         List<Schematic> parts = parts(level, origin, log);
         int total = 0;
         for (int i = 0; i < parts.size(); i++) {
